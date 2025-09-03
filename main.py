@@ -4,7 +4,7 @@ from src.Grafo.visualizar import plot_graph_with_names
 
 
 # Exemplo: bounding box pequena em Ponta Verde, Maceió  
-bbox = (-9.658351, -35.709431, -9.655868, -35.705403)
+bbox = (-9.658351, -35.709431, -9.655868, -35.705403) #Sul/Oeste/Norte/leste (Baixo/esquerda/Cima/Direita)
 
 data = get_osm_data(bbox)
 G, nodes, vertices, ways = build_graph(data)
