@@ -2,15 +2,9 @@ import networkx as nx
 import matplotlib.pyplot as plt
 from src.OSM.consultaOSM import get_node_street_name
 
+#Desenha o grafo com nomes das ruas principais nos cruzamentos e nas arestas.
 def plot_graph_with_names(G, nodes, ways):
-    """
-    Desenha o grafo com nomes das ruas principais nos cruzamentos e nas arestas.
 
-    Args:
-        G : nx.DiGraph - grafo de cruzamentos
-        nodes : dict - {node_id: (lat, lon)}
-        ways : list - lista de ways do OSM para pegar nomes das ruas
-    """
     plt.figure(figsize=(14, 14))
 
     # Coordenadas dos nodes
