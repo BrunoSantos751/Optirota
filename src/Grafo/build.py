@@ -37,7 +37,7 @@ def build_graph(data):
     # Criar arestas (segmentos entre vértices)
     for way in ways:
         node_ids = way["nodes"]
-        oneway = way["tags"].get("oneway", "no")
+        oneway = way["tags"].get("oneway", "no").lower()
         street_name = way.get("tags", {}).get("name", "rua sem nome")
         path = []
 
@@ -53,11 +53,17 @@ def build_graph(data):
                         dist += haversine(lat1, lon1, lat2, lon2)
 
                     n1, n2 = path[0], path[-1]
-                    G.add_edge(n1, n2, weight=dist, street=street_name)
-                    if oneway in ["no", "false", "0"]:
+
+                    # --- Tratamento de mão ---
+                    if oneway in ["yes", "true", "1"]:
+                        G.add_edge(n1, n2, weight=dist, street=street_name)
+                    elif oneway == "-1":
+                        G.add_edge(n2, n1, weight=dist, street=street_name)
+                    else:  # assume mão dupla
+                        G.add_edge(n1, n2, weight=dist, street=street_name)
                         G.add_edge(n2, n1, weight=dist, street=street_name)
 
+                # reinicia caminho a partir do cruzamento
                 path = [nid]
 
     return G, nodes, vertices, ways
-
