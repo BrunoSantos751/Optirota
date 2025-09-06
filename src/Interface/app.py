@@ -22,7 +22,7 @@ def run_app():
     root.title("OptiRota - Interface OSM")
 
     # Responsividade
-    root.geometry("800x300")
+    root.geometry("800x400")
     root.columnconfigure(0, weight=1)
     root.rowconfigure(0, weight=1)
 
