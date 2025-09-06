@@ -5,7 +5,7 @@ from src.OSM.consultaOSM import get_node_street_name
 #Desenha o grafo com nomes das ruas principais nos cruzamentos e nas arestas.
 def plot_graph_with_names(G, nodes, ways):
 
-    plt.figure(figsize=(14, 14))
+    plt.figure(figsize=(7,7))
 
     # Coordenadas dos nodes
     pos = {nid: (lon, lat) for nid, (lat, lon) in nodes.items() if nid in G.nodes}
