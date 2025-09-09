@@ -1,3 +1,4 @@
 requests           # Para consultar a Overpass API do OSM
 networkx           # Para criar e manipular grafos direcionados e ponderados
 matplotlib         # Para visualização de grafos
+timeit
