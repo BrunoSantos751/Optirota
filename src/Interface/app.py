@@ -65,7 +65,7 @@ def run_app():
     tk.Label(frame, text="Nó de Destino (ID):").grid(row=5, column=0, sticky="w")
     end_id_entry = tk.Entry(frame)
     end_id_entry.grid(row=5, column=1, sticky="ew")
-    end_id_entry.insert(0, "4554346850") # Exemplo
+    end_id_entry.insert(0, "7044690950") # Exemplo
     
     # Saída de resultados
     output_text = scrolledtext.ScrolledText(frame, wrap="word")
