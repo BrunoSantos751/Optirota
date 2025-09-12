@@ -3,3 +3,4 @@ networkx           # Para criar e manipular grafos direcionados e ponderados
 matplotlib         # Para visualização de grafos
 tkinter            # Para criar a interface
 timeit
+plotly
