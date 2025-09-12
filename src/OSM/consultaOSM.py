@@ -1,6 +1,6 @@
 import requests
 
-# --- Função para consultar OSM via Overpass API ---
+
 def get_osm_data(bbox):
     overpass_url = "http://overpass-api.de/api/interpreter"
     query = f"""
@@ -13,7 +13,6 @@ def get_osm_data(bbox):
     response = requests.get(overpass_url, params={'data': query})
     return response.json()
 
-# --- Função para obter nome da rua de um nó (cruzamento) ---
 def get_node_street_name(node_id, ways):
     ruas = set()
     for way in ways:
@@ -42,7 +41,7 @@ def print_crossings(G, nodes, vertices, ways, node_id_to_index, index_to_node_id
         nome_cruzamento = get_node_street_name(vertex_id, ways)
         lat, lon = nodes[vertex_id]
         
-        print(f"\nCruzamento: {nome_cruzamento} ({lat:.6f}, {lon:.6f}) conecta para:")
+        print(f" \nNode ID: {vertex_id}\nCruzamento: {nome_cruzamento} ({lat:.6f}, {lon:.6f}) conecta para:")
         
         try:
             # Lidar com arestas de saída
@@ -51,21 +50,14 @@ def print_crossings(G, nodes, vertices, ways, node_id_to_index, index_to_node_id
                 print(" -> Nenhuma rua conectada (saída)")
             else:
                 for edge_info in out_edges_list:
-                    # Verifica o tipo de retorno do `out_edges`
                     if isinstance(edge_info, int):
-                        # Caso 1: Retorna apenas o índice da aresta
                         edge_idx = edge_info
                         source_idx, target_idx = G.get_edge_endpoints_by_index(edge_idx)
                         edge_data = G.get_edge_data_by_index(edge_idx)
                     elif isinstance(edge_info, tuple) and len(edge_info) == 3:
-                        # Caso 2: Retorna uma tupla (source, target, edge_data)
                         source_idx, target_idx, edge_data = edge_info
                     elif isinstance(edge_info, dict):
-                        # Caso 3: Retorna o dicionário de dados da aresta diretamente
                         edge_data = edge_info
-                        # Como não temos os índices, pulamos para a próxima iteração
-                        # ou usamos o `G.successors` para encontrar o target, como no código anterior
-                        # Para compatibilidade, vamos usar a abordagem mais segura
                         target_idx = G.successors(vertex_idx)[0] if G.successors(vertex_idx) else -1
                         if target_idx == -1: continue
                     else:
@@ -78,12 +70,10 @@ def print_crossings(G, nodes, vertices, ways, node_id_to_index, index_to_node_id
                     rua_desc = f"{rua} (Node {target_id})" if rua == "rua sem nome" else rua
                     print(f" -> {rua_desc}, distância: {peso:.1f} m")
             
-            # Lidar com arestas de entrada
             in_edges_list = G.in_edges(vertex_idx)
             if in_edges_list and len(in_edges_list) != len(out_edges_list):
                 print("   Conexões de entrada:")
                 for edge_info in in_edges_list:
-                    # Aplica a mesma lógica de verificação de tipo para arestas de entrada
                     if isinstance(edge_info, int):
                         edge_idx = edge_info
                         source_idx, _ = G.get_edge_endpoints_by_index(edge_idx)
