@@ -1,3 +1,4 @@
+import timeit 
 from Filas.Fila_Simples import FilaSimples
 from Filas.Fila_Prioridade import FilaPrioridade
 from Filas.Pilha import Pilha
@@ -34,7 +35,15 @@ def testar_pilha():
     print("Pilha após desempilhar:", pilha.exibir_pilha())
     print("Está vazia?", pilha.esta_vazia())
 
+def meu_codigo():
+    for i in range(1000000):
+        pass
+
+
 if __name__ == "__main__":
     testar_fila_simples()
     testar_fila_prioridade()
     testar_pilha()
+
+tempo = timeit.timeit(meu_codigo, number=1)
+print(f"Tempo de execução: {tempo:.5f} segundos")

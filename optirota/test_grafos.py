@@ -1,3 +1,4 @@
+import time
 from src.OSM.consultaOSM import get_osm_data, print_crossings
 from src.Grafo.build import build_graph
 from src.Grafo.visualizar import plot_graph_with_names
@@ -27,3 +28,14 @@ def testar_grafo():
 
 if __name__ == "__main__":
     testar_grafo()
+
+inicio = time.time()
+
+# --- seu código aqui ---
+for i in range(1000000):
+    pass
+
+fim = time.time()
+
+print(f"Tempo de execução: {fim - inicio:.5f} segundos")
+
