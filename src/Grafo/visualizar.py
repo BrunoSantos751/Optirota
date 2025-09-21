@@ -12,8 +12,7 @@ def plot_graph_with_names(G, nodes, ways, node_id_to_index, index_to_node_id):
     node_x = []
     node_y = []
     node_text = []
-    node_adjacencies = []
-    # Lista para as anotações (setas de direção)
+    node_adjacencies = [] # Lista para as anotações (setas de direção)
     annotations = []
 
     crossing_node_indices = set()
@@ -112,10 +111,6 @@ def plot_graph_with_names(G, nodes, ways, node_id_to_index, index_to_node_id):
     print(f"\nO gráfico interativo em formato de mapa foi salvo em: {os.path.abspath(file_path)}")
 
 
-import plotly.graph_objects as go
-import os
-from src.OSM.consultaOSM import get_node_street_name
-
 def plot_path_only(path, nodes, ways):
     print("Gerando visualização do menor caminho em um novo mapa...")
     
@@ -179,7 +174,7 @@ def plot_path_only(path, nodes, ways):
                 path_node_sizes.append(20)
                 path_node_text[-1] = f"<b>Nó Inicial:</b> {node_id}<br><b>Rua:</b> {street_name}"
             elif i == len(path) - 1:
-                path_node_colors.append('pink')
+                path_node_colors.append('yellow')
                 path_node_sizes.append(20)
                 path_node_text[-1] = f"<b>Nó Final:</b> {node_id}<br><b>Rua:</b> {street_name}"
             else:

@@ -6,6 +6,7 @@ from src.OSM.consultaOSM import get_osm_data
 from src.Grafo.build import build_graph
 from src.Grafo.visualizar import plot_graph_with_names, plot_path_only
 from src.Algoritimos.dijkstra import dijkstra
+from src.Algoritimos.performance_comparison import run_performance_test
 
 def capture_print_crossings(G, nodes, vertices, ways, node_id_to_index, index_to_node_id, limit=20):
     """
@@ -118,7 +119,7 @@ def run_app():
             result += capture_print_crossings(
                 G, nodes, vertices, ways, 
                 node_id_to_index, index_to_node_id, 
-                limit=20
+                limit=1000
             )
             
             output_text.delete("1.0", tk.END)
@@ -156,37 +157,24 @@ def run_app():
         """Função adicional para mostrar estatísticas detalhadas do grafo"""
         try:
             if loaded_graph["G"] is None:
-                output_text.delete("1.0", tk.END)
-                output_text.insert(tk.END, "Carregue os dados primeiro usando 'Mostrar Conexões'")
-                return
-            
-            G = loaded_graph["G"]
-            vertices = loaded_graph["vertices"]
-            
-            stats = f"=== ESTATÍSTICAS DO GRAFO ===\n"
-            stats += f"Nós: {G.num_nodes()}\n"
-            stats += f"Arestas: {G.num_edges()}\n"
-            stats += f"Vértices (cruzamentos): {len(vertices)}\n"
-            
-            try:
-                components = len(list(G.connected_components())) if hasattr(G, 'connected_components') else "N/A"
-                stats += f"Componentes conectados: {components}\n"
-            except:
-                stats += f"Componentes conectados: Não disponível para grafos direcionados\n"
-            
-            if G.num_nodes() > 0:
-                total_degree = sum(len(G.out_edges(node_idx)) + len(G.in_edges(node_idx)) for node_idx in G.node_indices())
-                avg_degree = total_degree / (2 * G.num_nodes())
-                stats += f"Grau médio: {avg_degree:.2f}\n"
-            
+                G, nodes, vertices, ways, node_id_to_index, index_to_node_id = load_data()
+            else:
+                G, nodes, vertices, ways = (
+                    loaded_graph["G"],
+                    loaded_graph["nodes"],
+                    loaded_graph["vertices"],
+                    loaded_graph["ways"],
+                )
+                node_id_to_index = loaded_graph["node_id_to_index"]
+                index_to_node_id = loaded_graph["index_to_node_id"]
+
             output_text.delete("1.0", tk.END)
-            output_text.insert(tk.END, stats)
-            
+            output_text.insert (tk.END, run_performance_test(G, nodes, node_id_to_index, index_to_node_id, num_tests=100))
+        
         except Exception as e:
             output_text.delete("1.0", tk.END)
-            output_text.insert(tk.END, f"Erro ao calcular estatísticas: {str(e)}")
+            output_text.insert(tk.END, f"Erro ao gerar estatisticas: {str(e)}")
 
-    # ... (código anterior)
 
     def find_shortest_path():
         """Função para encontrar o menor caminho usando Dijkstra e plotá-lo"""

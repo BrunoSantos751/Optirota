@@ -5,7 +5,7 @@ def get_osm_data(bbox):
     overpass_url = "http://overpass-api.de/api/interpreter"
     query = f"""
     [out:json];
-    way["highway"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
+    way["highway"~"motorway|trunk|primary|secondary|tertiary|residential"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
     out body;
     >;
     out skel qt;
