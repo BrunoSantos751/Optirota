@@ -28,10 +28,10 @@ def build_graph(data):
             nodes[el["id"]] = (el["lat"], el["lon"])
         elif el["type"] == "way" and "highway" in el.get("tags", {}):
             # Adicionar filtro para ruas com nome
-            if "name" in el["tags"]:
-                ways.append(el)
-                for nid in el["nodes"]:
-                    node_usage[nid] += 1
+            #if "name" in el["tags"]:
+            ways.append(el)
+            for nid in el["nodes"]:
+                node_usage[nid] += 1
     
     # Identificar vértices (cruzamentos e extremidades de ruas com nome)
     vertices = set()
