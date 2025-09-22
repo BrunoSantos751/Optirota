@@ -6,7 +6,7 @@ from src.OSM.consultaOSM import get_osm_data
 from src.Grafo.build import build_graph
 from src.Grafo.visualizar import plot_graph_with_names, plot_path_only
 from src.Algoritimos.dijkstra import dijkstra
-from src.Algoritimos.performance_comparison import run_performance_test
+from tests.performance_comparison import run_performance_test
 
 def capture_print_crossings(G, nodes, vertices, ways, node_id_to_index, index_to_node_id, limit=20):
     """

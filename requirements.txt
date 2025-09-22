@@ -2,3 +2,8 @@ requests           # Para consultar a Overpass API do OSM
 matplotlib         # Para visualização de grafos
 plotly             # Para visualização interativa de grafos
 rustworkx         # Para manipulação eficiente de grafos em Rust
+seaborn           # Para visualização de dados estatísticos
+psutil            # Para monitoramento de recursos do sistema
+pandas            # Para manipulação e análise de dados
+memory_profiler    # Para monitoramento do uso de memória
+tabulate          # Para formatação de tabelas

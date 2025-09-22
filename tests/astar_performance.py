@@ -24,7 +24,7 @@ def quick_performance_test():
     
     # Carregar dados pequenos para teste rápido
     print("📍 Carregando dados de teste...")
-    bbox = (-9.66607, -35.72666, -9.66107, -35.72166)  # Área pequena
+    bbox = (-9.67107, -35.73166, -9.63134, -35.66720)  # Área pequena
     
     try:
         data = get_osm_data(bbox)
@@ -35,12 +35,12 @@ def quick_performance_test():
         return
     
     # Gerar 5 testes rápidos
-    vertices_list = list(vertices)[:10]  # Limitar para testes rápidos
+    vertices_list = list(vertices)[:100]  # Limitar para testes rápidos
     results = []
     
     print("\n⏱️ Executando testes de tempo...")
     
-    for i in range(5):
+    for i in range(100):
         start_id = random.choice(vertices_list)
         end_id = random.choice(vertices_list)
         

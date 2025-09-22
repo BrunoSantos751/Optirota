@@ -25,17 +25,17 @@ def main():
     
     if choice == "1":
         print("\n🏃 Executando Teste Rápido...")
-        from benchmarks.astar_performance import quick_performance_test
+        from tests.astar_performance import quick_performance_test
         quick_performance_test()
         
     elif choice == "2":
         print("\n🔬 Executando Análise Completa...")
-        from benchmarks.astar_performance import main as full_analysis
+        from tests.full_performance import main as full_analysis
         full_analysis()
         
     elif choice == "3":
         print("\n📊 Executando Comparação...")
-        from src.Algoritimos.performance_comparison import run_performance_test
+        from tests.performance_comparison import run_performance_test
         
         # Carregar dados para comparação
         from src.OSM.consultaOSM import get_osm_data

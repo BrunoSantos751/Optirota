@@ -1,18 +1,18 @@
 {
-  "valid_tests": 95,
+  "valid_tests": 91,
   "total_tests": 100,
   "dijkstra": {
-    "avg_time": 0.0024573501787687603,
-    "min_time": 0.0006740093231201172,
-    "max_time": 0.0043010711669921875,
-    "avg_nodes_explored": 2042.0
+    "avg_time": 0.0027530167129013565,
+    "min_time": 0.0007643699645996094,
+    "max_time": 0.006611347198486328,
+    "avg_nodes_explored": 2317.0
   },
   "astar": {
-    "avg_time": 0.00199350306862279,
-    "min_time": 0.000644683837890625,
-    "max_time": 0.004889726638793945,
-    "avg_nodes_explored": 350.5684210526316
+    "avg_time": 0.0022117698585594095,
+    "min_time": 0.0007152557373046875,
+    "max_time": 0.006061553955078125,
+    "avg_nodes_explored": 390.56043956043953
   },
-  "speedup_factor": 1.2326794061402768,
-  "node_reduction_factor": 5.824825846745136
+  "speedup_factor": 1.2447121034077555,
+  "node_reduction_factor": 5.932500492389072
 }

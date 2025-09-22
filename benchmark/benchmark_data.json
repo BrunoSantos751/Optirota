@@ -1,0 +1,39 @@
+{
+  "session_id": "20250922_010451",
+  "timestamp": "2025-09-22T01:04:58.921611",
+  "analysis_results": [
+    {
+      "size": "tiny",
+      "nodes": 143,
+      "edges": 276,
+      "avg_time_astar": 0.0001681826086338412,
+      "avg_time_dijkstra": 0.00014003043475974624,
+      "avg_memory_astar": 0.002887228260869565,
+      "avg_nodes_explored_astar": 39.30434782608695,
+      "speedup_factor": 0.8326094826166809,
+      "tests_run": 23
+    },
+    {
+      "size": "small",
+      "nodes": 2307,
+      "edges": 5241,
+      "avg_time_astar": 0.0019827124999665102,
+      "avg_time_dijkstra": 0.0023047083332509524,
+      "avg_memory_astar": 0.00016276041666666666,
+      "avg_nodes_explored_astar": 380.3333333333333,
+      "speedup_factor": 1.1624016761330151,
+      "tests_run": 24
+    },
+    {
+      "size": "medium",
+      "nodes": 6642,
+      "edges": 15531,
+      "avg_time_astar": 0.006532944000100543,
+      "avg_time_dijkstra": 0.007836903999996139,
+      "avg_memory_astar": -0.0409375,
+      "avg_nodes_explored_astar": 1192.4,
+      "speedup_factor": 1.1995976086547702,
+      "tests_run": 25
+    }
+  ]
+}
