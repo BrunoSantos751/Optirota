@@ -1,0 +1,18 @@
+{
+  "valid_tests": 95,
+  "total_tests": 100,
+  "dijkstra": {
+    "avg_time": 0.0024573501787687603,
+    "min_time": 0.0006740093231201172,
+    "max_time": 0.0043010711669921875,
+    "avg_nodes_explored": 2042.0
+  },
+  "astar": {
+    "avg_time": 0.00199350306862279,
+    "min_time": 0.000644683837890625,
+    "max_time": 0.004889726638793945,
+    "avg_nodes_explored": 350.5684210526316
+  },
+  "speedup_factor": 1.2326794061402768,
+  "node_reduction_factor": 5.824825846745136
+}

@@ -1,15 +1,10 @@
 import heapq
 import math
 
-def haversine_heuristic(lat1, lon1, lat2, lon2):
-    R = 6371000
-    phi1, phi2 = math.radians(lat1), math.radians(lat2)
-    dphi = math.radians(lat2 - lat1)
-    dlambda = math.radians(lon2 - lon1)
-    a = math.sin(dphi/2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda/2)**2
-    return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+def euclidean_heuristic(lat1, lon1, lat2, lon2):
+    return math.sqrt((lat1 - lat2)**2 + (lon1 - lon2)**2)
 
-def astar (G, start_id, end_id, nodes, node_id_to_index, index_to_node_id):
+def astar(G, start_id, end_id, nodes, node_id_to_index, index_to_node_id):
     if start_id not in node_id_to_index or end_id not in node_id_to_index:
         return None, float('inf'), 0
     
@@ -22,7 +17,7 @@ def astar (G, start_id, end_id, nodes, node_id_to_index, index_to_node_id):
     g_score[start_idx] = 0
     
     start_lat, start_lon = nodes[start_id]
-    f_start = haversine_heuristic(start_lat, start_lon, end_lat, end_lon)
+    f_start = euclidean_heuristic(start_lat, start_lon, end_lat, end_lon)
     
     open_set = [(f_start, start_idx)]
     predecessores = {node: None for node in G.node_indices()}
@@ -49,7 +44,7 @@ def astar (G, start_id, end_id, nodes, node_id_to_index, index_to_node_id):
                 
                 vizinho_id = index_to_node_id[vizinho_idx]
                 vizinho_lat, vizinho_lon = nodes[vizinho_id]
-                h_score = haversine_heuristic(vizinho_lat, vizinho_lon, end_lat, end_lon)
+                h_score = euclidean_heuristic(vizinho_lat, vizinho_lon, end_lat, end_lon)
                 
                 f_score = tentative_g + h_score
                 heapq.heappush(open_set, (f_score, vizinho_idx))

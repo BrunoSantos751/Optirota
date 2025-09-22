@@ -28,20 +28,16 @@ def build_graph(data):
             nodes[el["id"]] = (el["lat"], el["lon"])
         elif el["type"] == "way" and "highway" in el.get("tags", {}):
             # Adicionar filtro para ruas com nome
-            if "name" in el["tags"]:
-                ways.append(el)
-                for nid in el["nodes"]:
-                    node_usage[nid] += 1
+            #if "name" in el["tags"]:
+            ways.append(el)
+            for nid in el["nodes"]:
+                node_usage[nid] += 1
     
     # Identificar vértices (cruzamentos e extremidades de ruas com nome)
     vertices = set()
     for way in ways:
         node_ids = way["nodes"]
-        # Adicionar o primeiro e o último nó do 'way' como vértices
-        if len(node_ids) > 1:
-            vertices.add(node_ids[0])
-            vertices.add(node_ids[-1])
-        
+          
         # Adicionar nós que são cruzamentos (têm mais de uma aresta)
         for nid in node_ids:
             if node_usage[nid] > 1:
@@ -104,5 +100,5 @@ def build_graph(data):
                 # reinicia caminho a partir do cruzamento
                 path = [nid]
     
-    # Retornar também os mapeamentos para facilitar uso posterior
+
     return G, nodes, vertices, ways, node_id_to_index, index_to_node_id

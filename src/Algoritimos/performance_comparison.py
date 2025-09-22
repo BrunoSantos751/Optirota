@@ -4,14 +4,13 @@ import time
 import random
 import matplotlib.pyplot as plt
 import json
+from src.Algoritimos.dijkstra import dijkstra
+from src.Algoritimos.astar import astar
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(os.path.dirname(current_dir))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
-
-from src.Algoritimos.dijkstra import dijkstra
-from src.Algoritimos.astar import astar
 
 class PerformanceComparator:
     def __init__(self, G, nodes, node_id_to_index, index_to_node_id):
@@ -109,33 +108,35 @@ class PerformanceComparator:
     
     def print_results(self, results):
         if results is None:
-            print("Nenhum resultado disponível.")
-            return
+            return "Nenhum resultado disponível."
         
-        print("\n" + "="*50)
-        print("RESULTADOS DA COMPARAÇÃO DE DESEMPENHO")
-        print("="*50)
+        output = []
+        output.append("="*50)
+        output.append("RESULTADOS DA COMPARAÇÃO DE DESEMPENHO")
+        output.append("="*50)
         
-        print(f"Testes válidos: {results['valid_tests']}/{results['total_tests']}")
+        output.append(f"Testes válidos: {results['valid_tests']}/{results['total_tests']}")
         
-        print(f"\nDIJKSTRA:")
-        print(f"  Tempo médio: {results['dijkstra']['avg_time']*1000:.2f}ms")
-        print(f"  Tempo mínimo: {results['dijkstra']['min_time']*1000:.2f}ms")
-        print(f"  Tempo máximo: {results['dijkstra']['max_time']*1000:.2f}ms")
-        print(f"  Nós explorados (média): {results['dijkstra']['avg_nodes_explored']:.0f}")
+        output.append(f"\nDIJKSTRA:")
+        output.append(f"   Tempo médio: {results['dijkstra']['avg_time']*1000:.2f}ms")
+        output.append(f"   Tempo mínimo: {results['dijkstra']['min_time']*1000:.2f}ms")
+        output.append(f"   Tempo máximo: {results['dijkstra']['max_time']*1000:.2f}ms")
+        output.append(f"   Nós explorados (média): {results['dijkstra']['avg_nodes_explored']:.0f}")
         
-        print(f"\nA* (A-ESTRELA):")
-        print(f"  Tempo médio: {results['astar']['avg_time']*1000:.2f}ms")
-        print(f"  Tempo mínimo: {results['astar']['min_time']*1000:.2f}ms")
-        print(f"  Tempo máximo: {results['astar']['max_time']*1000:.2f}ms")
-        print(f"  Nós explorados (média): {results['astar']['avg_nodes_explored']:.0f}")
+        output.append(f"\nA* (A-ESTRELA):")
+        output.append(f"   Tempo médio: {results['astar']['avg_time']*1000:.2f}ms")
+        output.append(f"   Tempo mínimo: {results['astar']['min_time']*1000:.2f}ms")
+        output.append(f"   Tempo máximo: {results['astar']['max_time']*1000:.2f}ms")
+        output.append(f"   Nós explorados (média): {results['astar']['avg_nodes_explored']:.0f}")
         
-        print(f"\nCOMPARAÇÃO:")
-        print(f"  A* é {results['speedup_factor']:.2f}x mais rápido que Dijkstra")
-        print(f"  A* explora {results['node_reduction_factor']:.2f}x menos nós que Dijkstra")
+        output.append(f"\nCOMPARAÇÃO:")
+        output.append(f"   A* é {results['speedup_factor']:.2f}x mais rápido que Dijkstra")
+        output.append(f"   A* explora {results['node_reduction_factor']:.2f}x menos nós que Dijkstra")
         
         efficiency_improvement = ((results['dijkstra']['avg_time'] - results['astar']['avg_time']) / results['dijkstra']['avg_time']) * 100
-        print(f"  Melhoria de eficiência: {efficiency_improvement:.1f}%")
+        output.append(f"   Melhoria de eficiência: {efficiency_improvement:.1f}%")
+        
+        return "\n".join(output)
     
     def plot_comparison(self, results, save_path="performance_comparison.png"):
         if results is None:
@@ -194,4 +195,4 @@ def run_performance_test(G, nodes, node_id_to_index, index_to_node_id, num_tests
         comparator.plot_comparison(results)
         comparator.save_results(results)
     
-    return results
+    return comparator.print_results(results)
