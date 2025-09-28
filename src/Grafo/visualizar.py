@@ -1,223 +1,149 @@
-import plotly.graph_objects as go
-import rustworkx as rx
 import os
+import colorsys
+import math
+import numpy as np
+import folium
 from src.OSM.consultaOSM import get_node_street_name
 
-def plot_graph_with_names(G, nodes, ways, node_id_to_index, index_to_node_id):
-    print("Gerando visualização do grafo em formato de mapa com Plotly...")
+def _generate_distinct_colors(n):
+    """Gera n cores visualmente distintas."""
+    if n == 0: return []
+    colors = []
+    for i in range(n):
+        hue = i / n
+        lightness = 0.5 + (0.1 * (i % 2))
+        saturation = 0.9
+        r, g, b = colorsys.hls_to_rgb(hue, lightness, saturation)
+        colors.append('#%02x%02x%02x' % (int(r*255), int(g*255), int(b*255)))
+    return colors
 
-    edge_x = []
-    edge_y = []
-    
-    node_x = []
-    node_y = []
-    node_text = []
-    node_adjacencies = [] # Lista para as anotações (setas de direção)
-    annotations = []
+def _create_circle_shape(center_lat, center_lon, radius_km):
+    """Gera pontos (lats, lons) para formar um círculo em um mapa."""
+    R = 6371; d = radius_km / R
+    center_lat_rad = math.radians(center_lat); center_lon_rad = math.radians(center_lon)
+    lats, lons = [], []
+    for angle in np.linspace(0, 2 * math.pi, 100):
+        lat_rad = math.asin(math.sin(center_lat_rad) * math.cos(d) + math.cos(center_lat_rad) * math.sin(d) * math.cos(angle))
+        lon_rad = center_lon_rad + math.atan2(math.sin(angle) * math.sin(d) * math.cos(center_lat_rad), math.cos(d) - math.sin(center_lat_rad) * math.sin(lat_rad))
+        lats.append(math.degrees(lat_rad)); lons.append(math.degrees(lon_rad))
+    return lats, lons
 
-    crossing_node_indices = set()
-    
-    min_lat, max_lat = float('inf'), float('-inf')
-    min_lon, max_lon = float('inf'), float('-inf')
+def plot_graph_with_names(G, nodes, ways, node_id_to_index, index_to_node_id, depot_id=None, service_radius_km=None):
+    print("Gerando visualização do grafo com Folium...")
+    if not nodes:
+        print("Não há nós para plotar."); return
 
+    lats = [n[0] for n in nodes.values()]; lons = [n[1] for n in nodes.values()]
+    center_lat = sum(lats) / len(lats); center_lon = sum(lons) / len(lons)
+
+    mapa = folium.Map(location=[center_lat, center_lon], zoom_start=14, tiles="cartodbpositron", control_scale=True)
+
+    if service_radius_km and depot_id and depot_id in nodes:
+        depot_lat, depot_lon = nodes[depot_id]
+        folium.Circle(
+            location=[depot_lat, depot_lon], radius=service_radius_km * 1000, color='blue', 
+            fill=True, fill_color='blue', fill_opacity=0.1, popup=f"Raio de serviço: {service_radius_km} km"
+        ).add_to(mapa)
+
+    edges_group = folium.FeatureGroup(name="Ruas")
     for edge_idx in G.edge_indices():
         source_idx, target_idx = G.get_edge_endpoints_by_index(edge_idx)
-        edge_data = G.get_edge_data_by_index(edge_idx)
-
-        crossing_node_indices.add(source_idx)
-        crossing_node_indices.add(target_idx)
-
-        source_id = index_to_node_id[source_idx]
-        target_id = index_to_node_id[target_idx]
-
-        source_lat, source_lon = nodes[source_id]
-        target_lat, target_lon = nodes[target_id]
-        
-        min_lat = min(min_lat, source_lat, target_lat)
-        max_lat = max(max_lat, source_lat, target_lat)
-        min_lon = min(min_lon, source_lon, target_lon)
-        max_lon = max(max_lon, source_lon, target_lon)
-
-        edge_x.extend([source_lon, target_lon, None])
-        edge_y.extend([source_lat, target_lat, None])
-
-        annotations.append(
-            go.layout.Annotation(
-                x=target_lon, y=target_lat,
-                ax=source_lon, ay=source_lat,
-                showarrow=True,
-                arrowhead=5,
-                arrowsize=1.5,
-                arrowwidth=1,
-                arrowcolor='blue',
-                standoff=2,
-                opacity=0.5
-            )
-        )
-
-    for node_idx in crossing_node_indices:
-        node_id = index_to_node_id[node_idx]
-        lat, lon = nodes[node_id]
-        
-        node_x.append(lon)
-        node_y.append(lat)
-        
-        street_name = get_node_street_name(node_id, ways)
-        node_text.append(f"<b>Nó:</b> {node_id}<br><b>Rua:</b> {street_name}")
-
-        adjacencies = len(G.neighbors(node_idx))
-        node_adjacencies.append(adjacencies)
-
-    edge_trace = go.Scattermapbox(
-        lon=edge_x, lat=edge_y,
-        mode='lines',
-        line=dict(width=1.5, color='red'),
-        hoverinfo='none',
-        name="Ruas"
-    )
-
-    node_trace = go.Scattermapbox(
-        lon=node_x, lat=node_y,
-        mode='markers',
-        hoverinfo='text',
-        text=node_text,
-        name="Cruzamentos",
-        marker=go.scattermapbox.Marker(
-            size=[5 + (adj * 2) for adj in node_adjacencies],
-            color='blue',
-            symbol='circle',
-        )
-    )
-
-    center_lon = (min_lon + max_lon) / 2
-    center_lat = (min_lat + max_lat) / 2
+        source_id, target_id = index_to_node_id[source_idx], index_to_node_id[target_idx]
+        points = [nodes[source_id], nodes[target_id]]
+        folium.PolyLine(locations=points, color='grey', weight=2, opacity=0.8).add_to(edges_group)
+    edges_group.add_to(mapa)
     
-    fig = go.Figure(data=[edge_trace, node_trace],
-                    layout=go.Layout(
-                        title=go.layout.Title(text='<br>Grafo de Ruas - Visualização de Mapa', x=0.5),
-                        showlegend=False,
-                        hovermode='closest',
-                        margin={"r":0,"t":0,"l":0,"b":0},
-                        mapbox_style="open-street-map",
-                        mapbox_zoom=14,
-                        mapbox_center={"lat": center_lat, "lon": center_lon},
-                        annotations=annotations
-                    )
-                   )
-    
-    file_path = "street_map.html"
-    fig.write_html(file_path)
-    
-    print(f"\nO gráfico interativo em formato de mapa foi salvo em: {os.path.abspath(file_path)}")
+    nodes_group = folium.FeatureGroup(name="Cruzamentos")
+    for node_idx in G.node_indices():
+        node_id = index_to_node_id[node_idx]; lat, lon = nodes[node_id]
+        popup_text = f"<b>Nó:</b> {node_id}<br><b>Rua:</b> {get_node_street_name(node_id, ways)}"
+        if node_id == depot_id:
+            folium.Marker(location=[lat, lon], popup=f"<b>DEPÓSITO:</b> {node_id}", icon=folium.Icon(color='red', icon='star')).add_to(mapa)
+        else:
+            folium.CircleMarker(location=[lat, lon], radius=4, color='blue', fill=True, fill_color='blue', popup=popup_text).add_to(nodes_group)
+    nodes_group.add_to(mapa)
 
+    folium.LayerControl().add_to(mapa)
+    file_path = "street_map.html"; mapa.save(file_path)
+    print(f"\nO gráfico interativo foi salvo em: {os.path.abspath(file_path)}")
 
 def plot_path_only(path, nodes, ways):
-    print("Gerando visualização do menor caminho em um novo mapa...")
-    
-    path_edge_x = []
-    path_edge_y = []
-    
-    path_node_x = []
-    path_node_y = []
-    path_node_text = []
-    path_node_colors = []
-    path_node_sizes = []
-    
-    annotations = []
+    print("Gerando visualização do menor caminho com Folium...")
+    if not path or not path[0] in nodes:
+        print("Caminho inválido ou nó inicial não encontrado."); return
 
-    min_lat, max_lat = float('inf'), float('-inf')
-    min_lon, max_lon = float('inf'), float('-inf')
+    mapa = folium.Map(location=nodes[path[0]], zoom_start=16, tiles="cartodbpositron", control_scale=True)
 
-    for i in range(len(path) - 1):
-        source_id = path[i]
-        target_id = path[i + 1]
+    path_points = [nodes[node_id] for node_id in path if node_id in nodes]
+    folium.PolyLine(locations=path_points, color='blue', weight=5).add_to(mapa)
 
-        if source_id not in nodes or target_id not in nodes:
-            print(f"Aviso: Nó {source_id} ou {target_id} não encontrado nas coordenadas.")
-            continue
-            
-        source_lat, source_lon = nodes[source_id]
-        target_lat, target_lon = nodes[target_id]
-
-        path_edge_x.extend([source_lon, target_lon, None])
-        path_edge_y.extend([source_lat, target_lat, None])
-
-        min_lat = min(min_lat, source_lat, target_lat)
-        max_lat = max(max_lat, source_lat, target_lat)
-        min_lon = min(min_lon, source_lon, target_lon)
-        max_lon = max(max_lon, source_lon, target_lon)
-        
-        annotations.append(
-            go.layout.Annotation(
-                x=target_lon, y=target_lat,
-                ax=source_lon, ay=source_lat,
-                showarrow=True,
-                arrowhead=5,
-                arrowsize=2,
-                arrowwidth=2,
-                arrowcolor='red',
-                standoff=3
-            )
-        )
-    
     for i, node_id in enumerate(path):
         if node_id in nodes:
-            lat, lon = nodes[node_id]
-            street_name = get_node_street_name(node_id, ways)
-            
-            path_node_x.append(lon)
-            path_node_y.append(lat)
-            path_node_text.append(f"<b>Nó:</b> {node_id}<br><b>Rua:</b> {street_name}")
-
+            lat, lon = nodes[node_id]; popup_text = f"<b>Nó:</b> {node_id}<br><b>Rua:</b> {get_node_street_name(node_id, ways)}"
             if i == 0:
-                path_node_colors.append('green')
-                path_node_sizes.append(20)
-                path_node_text[-1] = f"<b>Nó Inicial:</b> {node_id}<br><b>Rua:</b> {street_name}"
+                folium.Marker(location=[lat, lon], popup=f"<b>INÍCIO:</b><br>{popup_text}", icon=folium.Icon(color='green', icon='play')).add_to(mapa)
             elif i == len(path) - 1:
-                path_node_colors.append('yellow')
-                path_node_sizes.append(20)
-                path_node_text[-1] = f"<b>Nó Final:</b> {node_id}<br><b>Rua:</b> {street_name}"
+                folium.Marker(location=[lat, lon], popup=f"<b>FIM:</b><br>{popup_text}", icon=folium.Icon(color='red', icon='stop')).add_to(mapa)
             else:
-                path_node_colors.append('blue')
-                path_node_sizes.append(10)
+                folium.CircleMarker(location=[lat, lon], radius=4, color='blue', fill=True, popup=popup_text).add_to(mapa)
+    
+    file_path = "path_map.html"; mapa.save(file_path)
+    print(f"\nO mapa do menor caminho foi salvo em: {os.path.abspath(file_path)}")
 
-    path_edge_trace = go.Scattermapbox(
-        lon=path_edge_x, lat=path_edge_y,
-        mode='lines',
-        line=dict(width=5, color='red'),
-        hoverinfo='none',
-        name="Caminho"
-    )
+def plot_vrp_routes(routes, depot_id, nodes, ways, distance_matrix, service_radius_km=None):
     
-    path_node_trace = go.Scattermapbox(
-        lon=path_node_x, lat=path_node_y,
-        mode='markers',
-        hoverinfo='text',
-        text=path_node_text,
-        name="Nós do Caminho",
-        marker=go.scattermapbox.Marker(
-            size=path_node_sizes,
-            color=path_node_colors,
-            symbol='circle'
-        )
-    )
+    print("Gerando visualização das rotas VRP com Folium...")
+    if not routes or not depot_id in nodes:
+        print("Dados de rota inválidos ou depósito não encontrado."); return
 
-    center_lon = (min_lon + max_lon) / 2
-    center_lat = (min_lat + max_lat) / 2
+    mapa = folium.Map(location=nodes[depot_id], zoom_start=14, tiles="cartodbpositron", control_scale=True)
+
+    if service_radius_km:
+        folium.Circle(location=nodes[depot_id], radius=service_radius_km * 1000, color='#3186cc', fill=True, fill_color='#3186cc', fill_opacity=0.1, popup=f"Raio de serviço: {service_radius_km} km").add_to(mapa)
+
+    total_segments = sum(len(data['route']) - 1 for data in routes.values() if data.get('route'))
+    segment_colors = _generate_distinct_colors(total_segments)
+    color_index = 0
     
-    fig = go.Figure(data=[path_edge_trace, path_node_trace],
-                    layout=go.Layout(
-                        showlegend=False,
-                        hovermode='closest',
-                        margin={"r":0,"t":0,"l":0,"b":0},
-                        mapbox_style="open-street-map",
-                        mapbox_zoom=16,
-                        mapbox_center={"lat": center_lat, "lon": center_lon},
-                        annotations=annotations
-                    )
-                   )
+    for vehicle_id, data in sorted(routes.items()):
+        route_stops = data['route']
+        if not route_stops: continue
+        
+        # Loop através de cada trecho para criar uma camada individual na legenda
+        for j in range(len(route_stops) - 1):
+            source_stop, target_stop = route_stops[j], route_stops[j+1]
+            _, _, segment_path = distance_matrix.get((source_stop, target_stop), (0, 0, []))
+            
+            if segment_path and color_index < len(segment_colors):
+                path_points = [nodes[node_id] for node_id in segment_path if node_id in nodes]
+                
+                # Cria um nome descritivo para cada trecho na legenda
+                trace_name = f"{vehicle_id}: {j+1} ({target_stop})"
+                if target_stop == depot_id:
+                    trace_name = f"{vehicle_id}: Retorno"
+
+                # Cria um grupo de camadas para cada trecho individualmente
+                segment_group = folium.FeatureGroup(name=trace_name)
+                
+                folium.PolyLine(
+                    locations=path_points, 
+                    color=segment_colors[color_index], 
+                    weight=5, 
+                    opacity=0.8
+                ).add_to(segment_group)
+                
+                color_index += 1
+                segment_group.add_to(mapa)
+
+    # Marcadores de clientes e depósito (permanecem visíveis)
+    folium.Marker(location=nodes[depot_id], popup=f"<b>DEPÓSITO: {depot_id}</b>", icon=folium.Icon(color='blue', icon='star')).add_to(mapa)
+    all_customer_ids = {c_id for data in routes.values() for c_id in data['route'] if c_id != depot_id}
+    for cust_id in all_customer_ids:
+        if cust_id in nodes:
+            folium.CircleMarker(location=nodes[cust_id], radius=6, color='black', fill=True, fill_color='white', fill_opacity=1, popup=f"<b>Cliente:</b> {cust_id}<br><b>Rua:</b> {get_node_street_name(cust_id, ways)}").add_to(mapa)
+
+    folium.LayerControl().add_to(mapa)
     
-    file_path = "street_map.html"
-    fig.write_html(file_path)
-    
-    print(f"\nO gráfico do menor caminho foi salvo em: {os.path.abspath(file_path)}")
+    file_path = "vrp_routes_map.html"
+    mapa.save(file_path)
+    print(f"\nO mapa com as rotas VRP foi salvo em: {os.path.abspath(file_path)}")

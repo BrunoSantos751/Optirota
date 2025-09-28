@@ -7,3 +7,4 @@ psutil            # Para monitoramento de recursos do sistema
 pandas            # Para manipulação e análise de dados
 memory_profiler    # Para monitoramento do uso de memória
 tabulate          # Para formatação de tabelas
+folium            # Para visualização de mapas

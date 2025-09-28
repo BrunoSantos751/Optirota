@@ -1,127 +1,285 @@
 import math
 from collections import defaultdict
-from src.Algoritimos.astar_euclidean import astar as astar_euclidean # Importa o astar_euclidean
+from src.Algoritimos.astar_euclidean import astar as astar_euclidean
+import itertools
 
-class VRPSolver:
-    def __init__(self, graph, nodes, node_id_to_index, index_to_node_id, depot_id, vehicles, customers):
-        self.graph = graph
-        self.nodes = nodes
-        self.node_id_to_index = node_id_to_index
-        self.index_to_node_id = index_to_node_id
-        self.depot_id = depot_id
-        self.vehicles = vehicles  # Lista de dicionários: [{'id': 1, 'capacity': 100, 'speed': 50}]
-        self.customers = customers # Lista de dicionários: [{'id': cust_id, 'demand': 10, 'time_window_start': 9, 'time_window_end': 17, 'service_time': 0}]
-        self.distance_matrix = {}
-        self.customer_data = {c['id']: c for c in customers}
-        self.vehicle_data = {v['id']: v for v in vehicles}
+def _calculate_distance_time_path(graph, nodes, node_id_to_index, index_to_node_id, start_node_id, end_node_id, vehicle_speed_kmh=50):
+    if start_node_id == end_node_id: return 0, 0, [start_node_id]
+    path, distance_meters, _ = astar_euclidean(graph, start_node_id, end_node_id, nodes, node_id_to_index, index_to_node_id)
+    if path is None: return float('inf'), float('inf'), None
+    speed_mps = vehicle_speed_kmh * 1000 / 3600
+    time_seconds = distance_meters / speed_mps if speed_mps > 0 else float('inf')
+    return distance_meters, time_seconds, path
 
-    def _calculate_distance(self, start_node_id, end_node_id):
-        # Usa astar_euclidean para calcular a distância e o tempo
-        path, distance, time = astar_euclidean(self.graph, start_node_id, end_node_id, self.nodes, self.node_id_to_index, self.index_to_node_id)
-        return distance, time
+def _build_distance_matrix(graph, nodes, node_id_to_index, index_to_node_id, depot_id, customers, vehicles):
+    print("Iniciando construção da matriz de distâncias com A*...")
+    distance_matrix = {}
+    all_locations = [depot_id] + [c['id'] for c in customers]
+    avg_speed = sum(v.get('speed_kmh', 50) for v in vehicles) / len(vehicles) if vehicles else 50
+    for i in all_locations:
+        for j in all_locations:
+            if i == j: continue
+            if (i, j) not in distance_matrix:
+                dist, time, path = _calculate_distance_time_path(graph, nodes, node_id_to_index, index_to_node_id, i, j, avg_speed)
+                distance_matrix[(i, j)] = (dist, time, path)
+    print("Matriz de distâncias construída com sucesso.")
+    return distance_matrix
 
-    def _build_distance_matrix(self):
-        all_locations = [self.depot_id] + [c['id'] for c in self.customers]
-        for i in all_locations:
-            for j in all_locations:
-                if i == j:
-                    self.distance_matrix[(i, j)] = (0, 0)
-                elif (i, j) not in self.distance_matrix:
-                    dist, time = self._calculate_distance(i, j)
-                    self.distance_matrix[(i, j)] = (dist, time)
-                    self.distance_matrix[(j, i)] = (dist, time) # Assumindo simetria
+def _get_route_info(route_sequence, customer_data, distance_matrix, depot_id):
+    """
+    Função de validação que calcula o cronograma, duração e métricas de uma sequência de clientes.
+    Ajusta o horário de partida do depósito para garantir a viabilidade das janelas de tempo.
+    Retorna um dicionário com os dados ou None se a rota for inviável.
+    """
+    if not route_sequence:
+        return None
 
-    def solve(self):
-        self._build_distance_matrix()
-        
-        unassigned_customers = set(c['id'] for c in self.customers)
-        routes = defaultdict(list) # {vehicle_id: [depot, cust1, cust2, ..., depot]}
-        vehicle_current_load = defaultdict(int)
-        vehicle_current_time = defaultdict(int)
-        
-        # Inicializa as rotas com o depósito
-        for vehicle in self.vehicles:
-            routes[vehicle['id']].append(self.depot_id)
-            vehicle_current_time[vehicle['id']] = 0 # Assumindo que os veículos começam no depósito no tempo 0
+    full_route = [depot_id] + route_sequence + [depot_id]
+    
+    first_customer_id = full_route[1]
+    _, time_to_first, _ = distance_matrix.get((depot_id, first_customer_id), (float('inf'), float('inf'), []))
+    if time_to_first == float('inf'):
+        return None
 
-        while unassigned_customers:
-            best_customer = None
-            best_vehicle_id = None
-            best_insertion_cost = float('inf')
+    departure_time = max(0, customer_data[first_customer_id].get('time_window_start', 0) - time_to_first)
+
+    while True:
+        current_time = departure_time
+        adjustment_needed = 0
+
+        for i in range(len(full_route) - 1):
+            u, v = full_route[i], full_route[i+1]
+            _, travel_time, _ = distance_matrix.get((u, v), (0, 0, []))
+
+            if travel_time == float('inf'): return None
             
-            for customer_id in unassigned_customers:
-                customer_demand = self.customer_data[customer_id]['demand']
-                customer_tw_start = self.customer_data[customer_id]['time_window_start']
-                customer_tw_end = self.customer_data[customer_id]['time_window_end']
-                customer_service_time = self.customer_data[customer_id].get('service_time', 0) # Adiciona tempo de serviço
-                
-                for vehicle in self.vehicles:
-                    vehicle_id = vehicle['id']
-                    vehicle_capacity = self.vehicle_data[vehicle_id]['capacity']
+            arrival_at_v = current_time + travel_time
 
-                    # CVRP Constraint: Check capacity
-                    if vehicle_current_load[vehicle_id] + customer_demand > vehicle_capacity:
-                        continue # Cannot assign this customer to this vehicle, capacity exceeded
+            if v in customer_data:
+                cust_v = customer_data[v]
+                service_start = max(arrival_at_v, cust_v.get('time_window_start', 0))
 
-                    last_node_in_route = routes[vehicle_id][-1]
-                    dist_to_customer, time_to_customer = self.distance_matrix[(last_node_in_route, customer_id)]
-                    
-                    # VRPTW Constraint: Check time window
-                    arrival_time = vehicle_current_time[vehicle_id] + time_to_customer
-                    
-                    # If arrives too early, wait until time window starts
-                    wait_time = max(0, customer_tw_start - arrival_time)
-                    service_start_time = arrival_time + wait_time
-                    
-                    if service_start_time > customer_tw_end:
-                        continue # Cannot assign this customer, violates time window
+                if service_start > cust_v.get('time_window_end', float('inf')):
+                    adjustment_needed = service_start - cust_v.get('time_window_end')
+                    break
 
-                    current_cost = dist_to_customer # Still using distance as primary cost for now
-                    
-                    if current_cost < best_insertion_cost:
-                        best_insertion_cost = current_cost
-                        best_customer = customer_id
-                        best_vehicle_id = vehicle_id
-            
-            if best_customer is not None:
-                routes[best_vehicle_id].append(best_customer)
-                unassigned_customers.remove(best_customer)
-                
-                # Update load and time for the assigned vehicle
-                vehicle_current_load[best_vehicle_id] += self.customer_data[best_customer]['demand']
-                
-                last_node_in_route = routes[best_vehicle_id][-2] # Previous node
-                dist, time_travel = self.distance_matrix[(last_node_in_route, best_customer)]
-                
-                # Recalculate arrival and departure time considering service time and waiting
-                arrival_time = vehicle_current_time[best_vehicle_id] + time_travel
-                wait_time = max(0, self.customer_data[best_customer]['time_window_start'] - arrival_time)
-                departure_time = arrival_time + wait_time + self.customer_data[best_customer].get('service_time', 0)
-                
-                vehicle_current_time[best_vehicle_id] = departure_time
+                current_time = service_start + cust_v.get('service_time', 0)
             else:
-                # No more customers can be assigned under current logic (all assigned or no valid vehicle found)
+                current_time = arrival_at_v
+        
+        if adjustment_needed > 0:
+            departure_time -= adjustment_needed
+            if departure_time < 0: return None
+        else:
+            break
+
+    # --- Lógica de cálculo final (com a correção) ---
+    schedule = {depot_id: {'arrival': departure_time, 'departure': departure_time}}
+    current_time = departure_time
+    total_distance = 0
+    total_travel_time = 0
+    total_service_time = 0
+
+    for i in range(len(full_route) - 1):
+        u, v = full_route[i], full_route[i+1]
+        dist, travel_time, _ = distance_matrix.get((u, v), (0, 0, []))
+        
+        total_distance += dist
+        total_travel_time += travel_time
+        arrival_at_v = current_time + travel_time
+
+        if v in customer_data:
+            cust_v = customer_data[v]
+            service_time = cust_v.get('service_time', 0)
+            total_service_time += service_time
+            service_start = max(arrival_at_v, cust_v.get('time_window_start', 0))
+            departure_from_v = service_start + service_time
+            schedule[v] = {'arrival': arrival_at_v, 'service_start': service_start, 'departure': departure_from_v}
+            current_time = departure_from_v
+        else: 
+            schedule[v]['arrival'] = arrival_at_v
+            current_time = arrival_at_v
+            
+    duration = current_time - departure_time
+    wait_time = max(0, duration - total_travel_time - total_service_time)
+    
+    metrics = {
+        'total_distance_meters': total_distance, 'total_travel_time_seconds': total_travel_time,
+        'total_service_time_seconds': total_service_time, 'total_wait_time_seconds': wait_time
+    }
+    
+    return {'schedule': schedule, 'duration': duration, 'metrics': metrics, 'route': full_route}
+
+def _cluster_customers(customers, distance_matrix):
+    """Agrupa clientes por proximidade de suas janelas de tempo de início."""
+    clusters = []
+    # Ordena clientes pela janela de início para processar em ordem cronológica
+    unclustered = sorted(customers, key=lambda c: c['time_window_start'])
+
+    while unclustered:
+        # Começa um novo cluster com o próximo cliente disponível (o com horário mais cedo)
+        new_cluster = [unclustered.pop(0)]
+        
+        i = 0
+        while i < len(unclustered):
+            candidate = unclustered[i]
+            last_cust_in_cluster = new_cluster[-1]
+
+            if candidate['time_window_start'] < last_cust_in_cluster['time_window_start'] + 7200:
+
+                new_cluster.append(unclustered.pop(i))
+            else:
+                i += 1
+        
+        clusters.append(new_cluster)
+        
+    return clusters
+
+def _find_nearest_neighbor_route(cluster_customer_ids, customer_data, distance_matrix, depot_id):
+    """
+    Encontra a melhor rota para um cluster usando a heurística do Vizinho Mais Próximo,
+    testando cada cliente como ponto de partida para melhorar a qualidade.
+    """
+    best_route = {'info': None, 'duration': float('inf')}
+
+    # Tenta iniciar a rota a partir de cada cliente no cluster
+    for start_node in cluster_customer_ids:
+        unvisited = list(cluster_customer_ids)
+        current_route = []
+        
+        # Inicia a rota a partir do start_node
+        current_node = start_node
+        current_route.append(current_node)
+        unvisited.remove(current_node)
+
+        # Constrói o resto da rota, sempre buscando o vizinho mais próximo
+        while unvisited:
+            nearest_neighbor = None
+            min_time = float('inf')
+
+            # Encontra o vizinho mais próximo em tempo de viagem
+            for neighbor in unvisited:
+                _, time, _ = distance_matrix.get((current_node, neighbor), (0, float('inf'), []))
+                if time < min_time:
+                    min_time = time
+                    nearest_neighbor = neighbor
+            
+            # Se não houver vizinho alcançável, a rota a partir deste ponto é inválida
+            if nearest_neighbor is None:
+                current_route = [] # Invalida a rota para esta iteração
+                break
+            
+            current_route.append(nearest_neighbor)
+            unvisited.remove(nearest_neighbor)
+            current_node = nearest_neighbor
+
+        # Se uma rota completa foi construída, usa a função _get_route_info para
+        # validar as janelas de tempo e obter o custo real (duração)
+        if current_route:
+            route_info = _get_route_info(current_route, customer_data, distance_matrix, depot_id)
+            if route_info and route_info['duration'] < best_route['duration']:
+                best_route['info'] = route_info
+                best_route['duration'] = route_info['duration']
+
+    return best_route
+
+
+def solve_vrp_heuristic(graph, nodes, node_id_to_index, index_to_node_id, depot_id, vehicles, customers):
+    if not customers: return {}, "Nenhum cliente para atender.", None
+    distance_matrix = _build_distance_matrix(graph, nodes, node_id_to_index, index_to_node_id, depot_id, customers, vehicles)
+    customer_data = {c['id']: c for c in customers}
+
+    print("FASE 1: Agrupando clientes em missões lógicas...")
+    clusters = _cluster_customers(customers, distance_matrix)
+    print(f"Clientes agrupados em {len(clusters)} clusters.")
+    
+    final_routes = {}
+    unassigned_customers_final = set(c['id'] for c in customers)
+    used_vehicles = set()
+
+    # Usar uma lista como fila para poder adicionar clusters redivididos.
+    # Ordenar pela demanda total para processar os mais "pesados" primeiro.
+    clusters_to_process = sorted(clusters, key=lambda c: sum(cust['demand'] for cust in c), reverse=True)
+
+    print("FASE 2: Encontrando a rota para cada cluster com a heurística do Vizinho Mais Próximo...")
+    while clusters_to_process:
+        cluster = clusters_to_process.pop(0) # Pega o próximo cluster da fila
+        cluster_demand = sum(cust['demand'] for cust in cluster)
+        cluster_customer_ids = [c['id'] for c in cluster]
+        
+        # Encontra o menor veículo DISPONÍVEL que pode atender ao cluster
+        best_vehicle = None
+        available_vehicles = [v for v in vehicles if v['id'] not in used_vehicles]
+        
+        for v in sorted(available_vehicles, key=lambda v: v['capacity']):
+            if v['capacity'] >= cluster_demand:
+                best_vehicle = v
                 break
         
-        # Retornar ao depósito para cada rota
-        for vehicle_id in routes:
-            if routes[vehicle_id][-1] != self.depot_id:
-                # Calculate time to return to depot
-                last_customer_id = routes[vehicle_id][-1]
-                dist_to_depot, time_to_depot = self.distance_matrix[(last_customer_id, self.depot_id)]
-                
-                # Check if returning to depot is possible within vehicle's operational time (if any)
-                # For simplicity, assuming no hard vehicle end time for now, just adding travel time
-                vehicle_current_time[vehicle_id] += time_to_depot
-                routes[vehicle_id].append(self.depot_id)
+        if best_vehicle:
+            # Se um veículo foi encontrado, a lógica segue como antes
+            print(f"Analisando cluster {cluster_customer_ids} para o Veículo {best_vehicle['id']}...")
+            
+            best_route_for_cluster = _find_nearest_neighbor_route(
+                cluster_customer_ids, customer_data, distance_matrix, depot_id
+            )
+            
+            if best_route_for_cluster['info']:
+                route_info = best_route_for_cluster['info']
+                final_routes[best_vehicle['id']] = {
+                    'route': route_info['route'],
+                    'load': cluster_demand,
+                    'total_time_seconds': route_info['duration'],
+                    'schedule': route_info['schedule'],
+                    **route_info['metrics']
+                }
+                used_vehicles.add(best_vehicle['id'])
+                unassigned_customers_final -= set(cluster_customer_ids)
+                print(f"  -> Rota (Vizinho Mais Próximo) encontrada com duração de {route_info['duration']/60:.0f} min.")
+            else:
+                 print(f"  -> AVISO: Nenhuma rota viável encontrada para este cluster. Clientes serão reavaliados se possível.")
+                 clusters_to_process.append(cluster) # Devolve o cluster para a fila, pode ser que outro veículo o pegue
+        
+        else:
+            # Nenhum veículo único tem capacidade suficiente, vamos dividir o cluster.
+            print(f"INFO: Cluster {cluster_customer_ids} com demanda {cluster_demand} é grande demais. Tentando dividir...")
+            
+            if not available_vehicles:
+                print(f"  -> AVISO: Não há veículos disponíveis para atender o cluster {cluster_customer_ids}. Clientes abandonados.")
+                continue # Pula para o próximo cluster na fila
 
-        print("VRP Solver: Rotas geradas com heurística Vizinho Mais Próximo (com CVRP e VRPTW). ")
-        return dict(routes)
+            # Encontra a capacidade do maior veículo disponível para basear a divisão
+            largest_vehicle_capacity = max(v['capacity'] for v in available_vehicles)
+            
+            new_cluster_1 = []
+            new_cluster_1_demand = 0
+            # Ordena clientes pela demanda para tentar agrupar os menores primeiro
+            customers_to_split = sorted(cluster, key=lambda c: c['demand'])
 
-# Exemplo de uso (para testes internos, pode ser removido ou adaptado depois)
-if __name__ == "__main__":
-    # Este bloco precisaria de um grafo e dados de clientes/veículos reais para rodar.
-    # Por exemplo, você precisaria carregar dados do OSM e construir um grafo primeiro.
-    print("Módulo vrp_solver.py executado diretamente. Nenhuma ação VRP real foi realizada sem dados de entrada.")
+            # Cria o primeiro novo cluster com base na capacidade do maior veículo
+            for customer in list(customers_to_split):
+                if new_cluster_1_demand + customer['demand'] <= largest_vehicle_capacity:
+                    new_cluster_1.append(customer)
+                    new_cluster_1_demand += customer['demand']
+                    customers_to_split.remove(customer)
 
+            if new_cluster_1:
+                print(f"  -> Criado novo cluster {[c['id'] for c in new_cluster_1]} com demanda {new_cluster_1_demand}")
+                clusters_to_process.append(new_cluster_1)
+            
+            if customers_to_split: # O que sobrar forma outro cluster
+                remaining_demand = sum(c['demand'] for c in customers_to_split)
+                print(f"  -> Criado cluster restante {[c['id'] for c in customers_to_split]} com demanda {remaining_demand}")
+                clusters_to_process.append(customers_to_split)
 
+            # Reordena a fila para continuar processando os de maior demanda primeiro
+            clusters_to_process.sort(key=lambda c: sum(cust['demand'] for cust in c), reverse=True)
+
+    summary = "VRP concluído.\n"
+    # A lógica de `unassigned_customers_final` já deve funcionar corretamente
+    assigned_customers = {c_id for route_data in final_routes.values() for c_id in route_data['route']}
+    unassigned_customers_final = set(c['id'] for c in customers) - assigned_customers
+    
+    if unassigned_customers_final:
+        summary += f"Clientes não atendidos: {list(unassigned_customers_final)}"
+    return final_routes, summary, distance_matrix
